@@ -15,7 +15,7 @@ public class TarefaService {
     private TarefaRepository TarefaRepository;
 
     public List<Tarefa> listar() {
-        return TarefaRepository.findAll());
+        return TarefaRepository.findAll();
     }
 
     public Tarefa cadastrar(Tarefa Tarefa) {
