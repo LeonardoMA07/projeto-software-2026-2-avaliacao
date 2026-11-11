@@ -1,0 +1,81 @@
+name: Deploy automatico
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+env:
+  IMAGE: avaliacao
+  CONTAINER_NAME: avaliacao
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: "25"
+          distribution: temurin
+          cache: maven
+
+      - name: Testes e build com Maven
+        run: mvn -B package --file pom.xml
+
+      - name: Build da imagem Docker
+        run: |
+          docker build -t $IMAGE:${{ github.sha }} .
+          docker save $IMAGE:${{ github.sha }} | gzip > avaliacao.tar.gz
+
+      - name: Copia a imagem para a EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ubuntu
+          key: ${{ secrets.KEY }}
+          source: avaliacao.tar.gz
+          target: /tmp
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOST }}
+          username: ubuntu
+          key: ${{ secrets.KEY }}
+          script: |
+            set -e
+            docker load -i /tmp/avaliacao.tar.gz
+            rm -f /tmp/avaliacao.tar.gz
+
+            docker network create rede-avaliacao 2>/dev/null || true
+
+            # Postgres: cria na primeira vez, depois so garante que esta rodando
+            docker start postgres-avaliacao 2>/dev/null || docker run -d \
+              --name postgres-avaliacao \
+              --network rede-avaliacao \
+              --restart unless-stopped \
+              -e POSTGRES_DB=avaliacaodb \
+              -e POSTGRES_USER=usuario \
+              -e POSTGRES_PASSWORD='${{ secrets.DB_PASSWORD }}' \
+              -v avaliacao-pgdata:/var/lib/postgresql/data \
+              postgres:17-alpine
+
+            docker rm -f ${{ env.CONTAINER_NAME }} 2>/dev/null || true
+            docker run -d \
+              --name ${{ env.CONTAINER_NAME }} \
+              --network rede-avaliacao \
+              --restart unless-stopped \
+              --memory 512m \
+              -p 8080:8080 \
+              -e TZ=America/Sao_Paulo \
+              -e DB_HOST=postgres-avaliacao \
+              -e DB_PASSWORD='${{ secrets.DB_PASSWORD }}' \
+              ${{ env.IMAGE }}:${{ github.sha }}
+
+            # Remove so as imagens antigas desta API (a maquina tem pouco disco)
+            docker images ${{ env.IMAGE }} --format '{{.Repository}}:{{.Tag}}' | grep -v ':${{ github.sha }}$' | xargs -r docker rmi || true
