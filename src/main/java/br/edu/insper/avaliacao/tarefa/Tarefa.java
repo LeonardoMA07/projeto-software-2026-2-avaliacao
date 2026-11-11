@@ -24,21 +24,17 @@ public class Avaliacao {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @NotBlank
-    @Email
-    private String emailAvaliador;
-
-    @NotBlank
-    @Email
-    private String emailAvaliado;
+    @NotBlank 
+    private String titulo;
 
     @Column(length = 2000)
-    private String comentarios;
+    private String description;
 
-    @NotNull
-    @Min(0)
-    @Max(10)
-    private Integer nota;
+    @NotBlank
+    @Email
+    private String emailResponsavel;
 
-    private LocalDateTime dataAvaliacao;
+    @NotNull 
+    private Integer prioridade;
+
 }

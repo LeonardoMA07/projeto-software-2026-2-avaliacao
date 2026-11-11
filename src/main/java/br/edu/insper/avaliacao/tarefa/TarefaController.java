@@ -13,22 +13,25 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/avaliacoes")
-public class AvaliacaoController {
+@RequestMapping("/tarefas")
+public class TarefaController {
 
     @Autowired
-    private AvaliacaoService avaliacaoService;
+    private TarefaService TarefaService;
 
     // ADMIN e USER (regra em WebSecurityConfig)
     @GetMapping
-    public List<Avaliacao> listar() {
-        return avaliacaoService.listar();
+    public List<Tarefa> listar() {
+        return TarefaService.listar();
     }
 
     // Somente ADMIN (regra em WebSecurityConfig)
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Avaliacao cadastrar(@RequestBody @Valid Avaliacao avaliacao) {
-        return avaliacaoService.cadastrar(avaliacao);
+    public Tarefa cadastrar(@RequestBody @Valid Tarefa Tarefa) {
+        return TarefaService.cadastrar(Tarefa);
     }
+
+    @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void excluir(@PathVariable Integer id) { repository.deleteById(id); }
 }
